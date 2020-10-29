@@ -12,10 +12,9 @@ conda env create -f conda_env.yml
 
 ## Instructions
 To train a CURL-D2RL agent on the `cartpole swingup` task from image-based observations run `bash script/run.sh` from the root of this directory. The `run.sh` file contains the following command, which you can modify to try different environments / hyperparamters.
-```
+```bash
 CUDA_VISIBLE_DEVICES=0 python train.py \
-    --domain_name cartpole \
-    --task_name swingup \
+    --env cartpole \
     --encoder_type pixel \
     --action_repeat 8 \
     --save_tb --pre_transform_image_size 100 --image_size 84 \
