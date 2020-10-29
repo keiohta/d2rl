@@ -179,7 +179,7 @@ def main():
             project='d2rl',
             config=args,
             dir='wandb_logs',
-            group='{}_{}'.format(args.env),
+            group='{}_{}'.format(args.domain_name, args.task_name),
     )
 
     if args.seed == -1: 
