@@ -47,10 +47,11 @@ def weight_init(m):
 
 class Actor(nn.Module):
     """MLP actor network."""
+
     def __init__(
-        self, obs_shape, action_shape, hidden_dim, encoder_type,
-        encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters,
-        num_mlp_layers,
+            self, obs_shape, action_shape, hidden_dim, encoder_type,
+            encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters,
+            num_mlp_layers,
     ):
         super().__init__()
 
@@ -63,18 +64,16 @@ class Actor(nn.Module):
         self.log_std_max = log_std_max
 
         self.trunk = D2RLNetwork(
-                self.encoder.feature_dim, 
-                hidden_dim, 
-                2*action_shape[0], 
-                num_mlp_layers
+            self.encoder.feature_dim,
+            hidden_dim,
+            2 * action_shape[0],
+            num_mlp_layers
         )
 
         self.outputs = dict()
         self.apply(weight_init)
 
-    def forward(
-        self, obs, compute_pi=True, compute_log_pi=True, detach_encoder=False
-    ):
+    def forward(self, obs, compute_pi=True, compute_log_pi=True, detach_encoder=False):
         obs = self.encoder(obs, detach=detach_encoder)
 
         mu, log_std = self.trunk(obs).chunk(2, dim=-1)
@@ -82,7 +81,7 @@ class Actor(nn.Module):
         # constrain log_std inside [log_std_min, log_std_max]
         log_std = torch.tanh(log_std)
         log_std = self.log_std_min + 0.5 * (
-            self.log_std_max - self.log_std_min
+                self.log_std_max - self.log_std_min
         ) * (log_std + 1)
 
         self.outputs['mu'] = mu
@@ -105,9 +104,9 @@ class Actor(nn.Module):
 
         return mu, pi, log_pi, log_std
 
-#    def log(self, L, step, log_freq=LOG_FREQ):
-#        if step % log_freq != 0:
-#            return
+        #    def log(self, L, step, log_freq=LOG_FREQ):
+        #        if step % log_freq != 0:
+        #            return
 
         for k, v in self.outputs.items():
             L.log_histogram('train_actor/%s_hist' % k, v, step)
@@ -117,7 +116,7 @@ class Actor(nn.Module):
         L.log_param('train_actor/fc3', self.trunk[4], step)
 
 
-#class QFunction(nn.Module):
+# class QFunction(nn.Module):
 #    """MLP for q-function."""
 #    def __init__(self, obs_dim, action_dim, hidden_dim):
 #        super().__init__()
@@ -137,12 +136,12 @@ class Actor(nn.Module):
 
 class Critic(nn.Module):
     """Critic network, employes two q-functions."""
+
     def __init__(
-        self, obs_shape, action_shape, hidden_dim, encoder_type,
-        encoder_feature_dim, num_layers, num_filters, num_mlp_layers,
+            self, obs_shape, action_shape, hidden_dim, encoder_type,
+            encoder_feature_dim, num_layers, num_filters, num_mlp_layers,
     ):
         super().__init__()
-
 
         self.encoder = make_encoder(
             encoder_type, obs_shape, encoder_feature_dim, num_layers,
@@ -150,10 +149,10 @@ class Critic(nn.Module):
         )
 
         self.Q1 = D2RLNetwork(
-            self.encoder.feature_dim+action_shape[0], hidden_dim, 1, num_mlp_layers,
+            self.encoder.feature_dim + action_shape[0], hidden_dim, 1, num_mlp_layers,
         )
         self.Q2 = D2RLNetwork(
-            self.encoder.feature_dim+action_shape[0], hidden_dim, 1, num_mlp_layers,
+            self.encoder.feature_dim + action_shape[0], hidden_dim, 1, num_mlp_layers,
         )
 
         self.outputs = dict()
@@ -163,7 +162,7 @@ class Critic(nn.Module):
         # detach_encoder allows to stop gradient propogation to encoder
         obs = self.encoder(obs, detach=detach_encoder)
 
-        q_input = torch.cat([obs, action], dim=1) 
+        q_input = torch.cat([obs, action], dim=1)
         q1 = self.Q1(q_input)
         q2 = self.Q2(q_input)
 
@@ -172,11 +171,11 @@ class Critic(nn.Module):
 
         return q1, q2
 
-#    def log(self, L, step, log_freq=LOG_FREQ):
-#        if step % log_freq != 0:
-#            return
+        #    def log(self, L, step, log_freq=LOG_FREQ):
+        #        if step % log_freq != 0:
+        #            return
 
-#        self.encoder.log(L, step, log_freq)
+        #        self.encoder.log(L, step, log_freq)
 
         for k, v in self.outputs.items():
             L.log_histogram('train_critic/%s_hist' % k, v, step)
@@ -196,8 +195,7 @@ class CURL(nn.Module):
         self.batch_size = batch_size
 
         self.encoder = critic.encoder
-
-        self.encoder_target = critic_target.encoder 
+        self.encoder_target = critic_target.encoder
 
         self.W = nn.Parameter(torch.rand(z_dim, z_dim))
         self.output_type = output_type
@@ -231,38 +229,40 @@ class CURL(nn.Module):
         logits = logits - torch.max(logits, 1)[0][:, None]
         return logits
 
+
 class CurlSacAgent(object):
     """CURL representation learning with SAC."""
+
     def __init__(
-        self,
-        obs_shape,
-        action_shape,
-        device,
-        hidden_dim=256,
-        discount=0.99,
-        init_temperature=0.01,
-        alpha_lr=1e-3,
-        alpha_beta=0.9,
-        actor_lr=1e-3,
-        actor_beta=0.9,
-        actor_log_std_min=-10,
-        actor_log_std_max=2,
-        actor_update_freq=2,
-        critic_lr=1e-3,
-        critic_beta=0.9,
-        critic_tau=0.005,
-        critic_target_update_freq=2,
-        encoder_type='pixel',
-        encoder_feature_dim=50,
-        encoder_lr=1e-3,
-        encoder_tau=0.005,
-        num_layers=4,
-        num_filters=32,
-        cpc_update_freq=1,
-        log_interval=100,
-        detach_encoder=False,
-        curl_latent_dim=128,
-        num_mlp_layers=4,
+            self,
+            obs_shape,
+            action_shape,
+            device,
+            hidden_dim=256,
+            discount=0.99,
+            init_temperature=0.01,
+            alpha_lr=1e-3,
+            alpha_beta=0.9,
+            actor_lr=1e-3,
+            actor_beta=0.9,
+            actor_log_std_min=-10,
+            actor_log_std_max=2,
+            actor_update_freq=2,
+            critic_lr=1e-3,
+            critic_beta=0.9,
+            critic_tau=0.005,
+            critic_target_update_freq=2,
+            encoder_type='pixel',
+            encoder_feature_dim=50,
+            encoder_lr=1e-3,
+            encoder_tau=0.005,
+            num_layers=4,
+            num_filters=32,
+            cpc_update_freq=1,
+            log_interval=100,
+            detach_encoder=False,
+            curl_latent_dim=128,
+            num_mlp_layers=4,
     ):
         self.device = device
         self.discount = discount
@@ -285,14 +285,14 @@ class CurlSacAgent(object):
 
         self.critic = Critic(
             obs_shape, action_shape, hidden_dim, encoder_type,
-            encoder_feature_dim, num_layers, num_filters, num_mlp_layers 
+            encoder_feature_dim, num_layers, num_filters, num_mlp_layers
         ).to(device)
 
         self.critic_target = Critic(
             obs_shape, action_shape, hidden_dim, encoder_type,
             encoder_feature_dim, num_layers, num_filters, num_mlp_layers
         ).to(device)
-        
+
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         # tie encoders between actor and critic, and CURL and critic
@@ -302,7 +302,7 @@ class CurlSacAgent(object):
         self.log_alpha.requires_grad = True
         # set target entropy to -|A|
         self.target_entropy = -np.prod(action_shape)
-        
+
         # optimizers
         self.actor_optimizer = torch.optim.Adam(
             self.actor.parameters(), lr=actor_lr, betas=(actor_beta, 0.999)
@@ -319,7 +319,8 @@ class CurlSacAgent(object):
         if self.encoder_type == 'pixel':
             # create CURL encoder (the 128 batch size is probably unnecessary)
             self.CURL = CURL(obs_shape, encoder_feature_dim,
-                        self.curl_latent_dim, self.critic,self.critic_target, output_type='continuous').to(self.device)
+                             self.curl_latent_dim, self.critic, self.critic_target, output_type='continuous').to(
+                self.device)
 
             # optimizer for critic encoder for reconstruction loss
             self.encoder_optimizer = torch.optim.Adam(
@@ -357,7 +358,7 @@ class CurlSacAgent(object):
     def sample_action(self, obs):
         if obs.shape[-1] != self.image_size:
             obs = utils.center_crop_image(obs, self.image_size)
- 
+
         with torch.no_grad():
             obs = torch.FloatTensor(obs).to(self.device)
             obs = obs.unsqueeze(0)
@@ -377,16 +378,15 @@ class CurlSacAgent(object):
             obs, action, detach_encoder=self.detach_encoder)
         critic_loss = F.mse_loss(current_Q1,
                                  target_Q) + F.mse_loss(current_Q2, target_Q)
-#        if step % self.log_interval == 0:
-#            L.log('train_critic/loss', critic_loss, step)
-
+        #        if step % self.log_interval == 0:
+        #            L.log('train_critic/loss', critic_loss, step)
 
         # Optimize the critic
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
 
-#        self.critic.log(L, step)
+    #        self.critic.log(L, step)
 
     def update_actor_and_alpha(self, obs, step):
         # detach encoder, so we don't update it with the actor loss
@@ -396,57 +396,57 @@ class CurlSacAgent(object):
         actor_Q = torch.min(actor_Q1, actor_Q2)
         actor_loss = (self.alpha.detach() * log_pi - actor_Q).mean()
 
-#        if step % self.log_interval == 0:
-#            L.log('train_actor/loss', actor_loss, step)
-#            L.log('train_actor/target_entropy', self.target_entropy, step)
+        #        if step % self.log_interval == 0:
+        #            L.log('train_actor/loss', actor_loss, step)
+        #            L.log('train_actor/target_entropy', self.target_entropy, step)
         entropy = 0.5 * log_std.shape[1] * \
-            (1.0 + np.log(2 * np.pi)) + log_std.sum(dim=-1)
-#        if step % self.log_interval == 0:                                    
-#            L.log('train_actor/entropy', entropy.mean(), step)
+                  (1.0 + np.log(2 * np.pi)) + log_std.sum(dim=-1)
+        #        if step % self.log_interval == 0:
+        #            L.log('train_actor/entropy', entropy.mean(), step)
 
         # optimize the actor
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
 
-#        self.actor.log(L, step)
+        #        self.actor.log(L, step)
 
         self.log_alpha_optimizer.zero_grad()
         alpha_loss = (self.alpha *
                       (-log_pi - self.target_entropy).detach()).mean()
-#        if step % self.log_interval == 0:
-#            L.log('train_alpha/loss', alpha_loss, step)
-#            L.log('train_alpha/value', self.alpha, step)
+        #        if step % self.log_interval == 0:
+        #            L.log('train_alpha/loss', alpha_loss, step)
+        #            L.log('train_alpha/value', self.alpha, step)
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
     def update_cpc(self, obs_anchor, obs_pos, cpc_kwargs, step):
-        
+
         z_a = self.CURL.encode(obs_anchor)
         z_pos = self.CURL.encode(obs_pos, ema=True)
-        
+
         logits = self.CURL.compute_logits(z_a, z_pos)
         labels = torch.arange(logits.shape[0]).long().to(self.device)
         loss = self.cross_entropy_loss(logits, labels)
-        
+
         self.encoder_optimizer.zero_grad()
         self.cpc_optimizer.zero_grad()
         loss.backward()
 
         self.encoder_optimizer.step()
         self.cpc_optimizer.step()
-#        if step % self.log_interval == 0:
-#            L.log('train/curl_loss', loss, step)
 
+    #        if step % self.log_interval == 0:
+    #            L.log('train/curl_loss', loss, step)
 
     def update(self, replay_buffer, step):
         if self.encoder_type == 'pixel':
             obs, action, reward, next_obs, not_done, cpc_kwargs = replay_buffer.sample_cpc()
         else:
             obs, action, reward, next_obs, not_done = replay_buffer.sample_proprio()
-    
-#        if step % self.log_interval == 0:
-#            L.log('train/batch_reward', reward.mean(), step)
+
+        #        if step % self.log_interval == 0:
+        #            L.log('train/batch_reward', reward.mean(), step)
 
         self.update_critic(obs, action, reward, next_obs, not_done, step)
 
@@ -464,10 +464,10 @@ class CurlSacAgent(object):
                 self.critic.encoder, self.critic_target.encoder,
                 self.encoder_tau
             )
-        
+
         if step % self.cpc_update_freq == 0 and self.encoder_type == 'pixel':
             obs_anchor, obs_pos = cpc_kwargs["obs_anchor"], cpc_kwargs["obs_pos"]
-            self.update_cpc(obs_anchor, obs_pos,cpc_kwargs, step)
+            self.update_cpc(obs_anchor, obs_pos, cpc_kwargs, step)
 
     def save(self, model_dir, step):
         torch.save(
@@ -489,4 +489,3 @@ class CurlSacAgent(object):
         self.critic.load_state_dict(
             torch.load('%s/critic_%s.pt' % (model_dir, step))
         )
- 
