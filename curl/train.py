@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import torch
 import dmc2gym
-import tensorflow as tf
+# import tensorflow as tf
 from tf2rl.misc.prepare_output_dir import prepare_output_dir
 from tf2rl.misc.initialize_logger import initialize_logger
 
@@ -231,35 +231,35 @@ def main():
     buffer_dir = os.path.join(logdir, "buffer")
 
     console_logger = initialize_logger(output_dir=logdir)
-    writer = tf.summary.create_file_writer(logdir)
-    writer.set_as_default()
+    # writer = tf.summary.create_file_writer(logdir)
+    # writer.set_as_default()
 
-    tf.summary.experimental.set_step(0)
+    # tf.summary.experimental.set_step(0)
 
     episode_start_time = time.perf_counter()
     for step in range(args.num_train_steps):
         # evaluate agent periodically
         if step % args.eval_freq == 0:
-            tf.summary.experimental.set_step(step)
+            # tf.summary.experimental.set_step(step)
             avg_test_return, avg_test_steps = evaluate(env, agent, args.num_eval_episodes, step, args)
             console_logger.info("Evaluation Total Steps: {0: 7} Average Reward {1: 5.4f} over {2: 2} episodes".format(
                 step, avg_test_return, args.num_eval_episodes))
-            tf.summary.scalar(
-                name="Common/average_test_return", data=avg_test_return)
-            tf.summary.scalar(
-                name="Common/average_test_episode_length", data=avg_test_steps)
+            # tf.summary.scalar(
+            #     name="Common/average_test_return", data=avg_test_return)
+            # tf.summary.scalar(
+            #     name="Common/average_test_episode_length", data=avg_test_steps)
             if args.save_model:
                 agent.save_curl(model_dir, step)
             if args.save_buffer:
                 replay_buffer.save(buffer_dir)
 
         if done:
-            tf.summary.experimental.set_step(step)
+            # tf.summary.experimental.set_step(step)
             fps = episode_step / (time.perf_counter() - episode_start_time)
             console_logger.info("Total Epi: {0: 5} Steps: {1: 7} Episode Steps: {2: 5} Return: {3: 5.4f} FPS: {4:5.2f}".format(
                 episode, step, episode_step, episode_reward, fps))
-            tf.summary.scalar(name="Common/training_return", data=episode_reward)
-            tf.summary.scalar(name="Common/training_episode_length", data=episode_step)
+            # tf.summary.scalar(name="Common/training_return", data=episode_reward)
+            # tf.summary.scalar(name="Common/training_episode_length", data=episode_step)
             obs = env.reset()
             episode_start_time = time.perf_counter()
             done = False
