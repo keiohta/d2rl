@@ -5,7 +5,6 @@ import argparse
 import numpy as np
 import torch
 import dmc2gym
-import wandb
 import tensorflow as tf
 from tf2rl.misc.prepare_output_dir import prepare_output_dir
 from tf2rl.misc.initialize_logger import initialize_logger
@@ -106,9 +105,6 @@ def evaluate(env, agent, num_episodes, step, args):
         mean_ep_reward = np.mean(all_ep_rewards)
         best_ep_reward = np.max(all_ep_rewards)
 
-        logger.log({
-            'mean_reward': mean_ep_reward,
-            'max_reward': best_ep_reward})
         return avg_test_return / num_episodes, avg_test_steps / num_episodes
 
     return run_eval_loop(sample_stochastically=False)
@@ -174,13 +170,6 @@ def main():
         args.action_repeat = 4
 
     args.domain_name, args.task_name = dm_envs[args.env]
-
-    global logger
-    logger = wandb.init(
-        project='d2rl',
-        config=args,
-        dir='wandb_logs',
-        group='{}_{}'.format(args.domain_name, args.task_name))
 
     if args.seed == -1:
         args.__dict__["seed"] = np.random.randint(1, 1000000)
