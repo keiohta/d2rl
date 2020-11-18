@@ -38,7 +38,7 @@ def main():
     for idx, env in enumerate(envs):
         gpu_type = "TitanV" if idx % 2 == 0 else "QuadroRTX6000"
         batch_size = 512 if env == 'cheetah' else 128
-        cur_batch = template.format(concurrent=trial, gpu=gpu_type, dir_root=dir_root, batch_size=batch_size)
+        cur_batch = template.format(concurrent=trial, gpu=gpu_type, dir_root=dir_root, batch_size=batch_size, env=env)
 
         cur_out = os.path.join(dir_out, f"CURL_{env}.srun")
         with open(cur_out, "w") as f:
