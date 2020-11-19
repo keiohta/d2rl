@@ -12,6 +12,10 @@ from tf2rl.misc.initialize_logger import initialize_logger
 import utils
 from curl_sac import CurlSacAgent
 
+if tf.config.experimental.list_physical_devices('GPU'):
+    for cur_device in tf.config.experimental.list_physical_devices("GPU"):
+        tf.config.experimental.set_memory_growth(cur_device, enable=True)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
